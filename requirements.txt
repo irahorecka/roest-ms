@@ -1,2 +1,7 @@
+# Core
 numpy
 pyopenms
+
+# Development
+black
+jupyterblack
