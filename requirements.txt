@@ -1,5 +1,6 @@
 # Core
 numpy
+pandas
 pyopenms
 
 # Development
