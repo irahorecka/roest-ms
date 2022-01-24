@@ -1,6 +1,7 @@
 # Core
 numpy
 pandas
+pandarallel
 pyopenms
 
 # Development
