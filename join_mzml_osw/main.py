@@ -1,4 +1,5 @@
 # BEGIN MERGING OF MZML FILE WITH OSW FILE
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -9,6 +10,8 @@ DATA_DIR = ROOT_DIR / "data"
 MZML_DIR = DATA_DIR / "mzml"
 OSW_DIR = DATA_DIR / "osw"
 TSV_DIR = DATA_DIR / "tsv"
+# For exporting temporary TSV files
+TSV_TEMP_DIR = TSV_DIR / "temp"
 
 
 def get_msexperiment_obj(mzml_filepath):
@@ -25,13 +28,22 @@ def read_chunk_tsv(input_path, chunksize=100_000):
         yield from reader
 
 
-def fetch_product_mz(tsv_chunk, mz_range=0.001):
+def fetch_product_mz(tsv_chunk, mz_range=0.001, ppm=None):
     for idx, chunk in enumerate(tsv_chunk):
-        # Give a small width to the PRODUCT_MZ vals - Do 0.001 Da for now
-        chunk["PRODUCT_MZ_LEFT"] = chunk["PRODUCT_MZ"] - mz_range
-        chunk["PRODUCT_MZ_RIGHT"] = chunk["PRODUCT_MZ"] + mz_range
+        if ppm is not None and isinstance(ppm, (int, float)):
+            ppm_range = (mz_to_ppm(mz, ppm) for mz in chunk["PRODUCT_MZ"])
+            chunk["PRODUCT_MZ_LEFT"], chunk["PRODUCT_MZ_RIGHT"] = zip(*ppm_range)
+        else:
+            # Give a small width to the PRODUCT_MZ vals - Do 0.001 Da for now
+            chunk["PRODUCT_MZ_LEFT"] = chunk["PRODUCT_MZ"] - mz_range
+            chunk["PRODUCT_MZ_RIGHT"] = chunk["PRODUCT_MZ"] + mz_range
         print(f"Reading chunk #{idx}", end="\r")
         yield chunk
+
+
+def mz_to_ppm(mz, ppm):
+    err_da = mz / (1_000_000 / ppm)
+    return (mz - err_da, mz + err_da)
 
 
 def find_peak_in_mzml_to_osw(mzml_exp, osw_df):
@@ -45,10 +57,17 @@ def find_peak_in_mzml_to_osw(mzml_exp, osw_df):
         mz_array, int_array = exp.get_peaks()
         # Iterate through MZ values in MZML experiment
         for mz_idx, mz in enumerate(exp.get_peaks()[0]):
+            if mz_idx % 500 == 0 and mz_idx != 0:
+                # Write to file every 500th loop - prevents bloating accumulating DF in memory
+                output_tsv_filepath = TSV_TEMP_DIR / f"{mz_idx}_{output_tsv_filename}"
+                export_as_tsv(output_mzml_df, output_tsv_filepath)
+                output_mzml_df = generate_output_mzml_file_df_format()
+
             # Find MZ that lie within a MZ threshold as defined in OSW file
             filtered_osw_df = osw_df[
                 (mz > osw_df["PRODUCT_MZ_LEFT"]) & (mz < osw_df["PRODUCT_MZ_RIGHT"])
             ]
+
             if filtered_osw_df.shape[0] != 0:
                 # Peak(s) found - record data to output file
                 found += 1
@@ -62,16 +81,34 @@ def find_peak_in_mzml_to_osw(mzml_exp, osw_df):
                 )
             else:
                 non_found += 1
+
             print(f"Found: {found} | Not Found: {non_found}", end="\r")
 
         # Get percentage found peaks per MZML experiment
         perc_sig_peaks = round(found / (non_found + found) * 100, 2)
-        output_mzml_df["PERC_SIG_PEAKS"] = perc_sig_peaks
-        print(f"% of sig peaks identified for exp {exp_idx + 1}:", perc_sig_peaks)
+        # Add logic here to merge df and add perc_sig_peaks col
+        export_mzml_df = read_tsv_in_dir_and_merge(TSV_TEMP_DIR)
+        export_mzml_df["PERC_SIG_PEAKS"] = perc_sig_peaks
 
+        # Sort dataframe by 'FEATURE_ID' -- THIS IS CRUCIAL FOR FOLLOWING STEP.
+        export_mzml_df = export_mzml_df.sort_values(by=["FEATURE_ID"])
+
+        print(f"% of sig peaks identified for exp {exp_idx + 1}:", perc_sig_peaks)
         # Export df
-        output_tsv_filepath = TSV_DIR / output_tsv_filename
-        export_as_tsv(output_mzml_df, output_tsv_filepath)
+        export_tsv_filepath = TSV_DIR / f"merged_{output_tsv_filename}"
+        export_as_tsv(export_mzml_df, export_tsv_filepath)
+        print(f"{export_tsv_filepath} written to file.")
+
+
+def read_tsv_in_dir_and_merge(tsv_dir):
+    # tsv_dir is a Path obj
+    tsv_files = tsv_dir.rglob("*.tsv")
+    df = pd.DataFrame()
+    for tsv in tsv_files:
+        df = pd.concat([df, pd.read_csv(tsv, sep="\t")])
+        # Delete file
+        tsv.unlink()
+    return df
 
 
 def export_as_tsv(df, output_path):
@@ -81,7 +118,7 @@ def export_as_tsv(df, output_path):
 
 def generate_output_mzml_tsv_filename(exp):
     exp_id = exp.getNativeID()
-    return f"20220124_{exp_id}_qvalue_01.tsv"
+    return f"{datetime.now().strftime('%Y%m%d')}_{exp_id}_qvalue_01.tsv"
 
 
 def generate_output_mzml_file_df_format():
@@ -125,6 +162,9 @@ if __name__ == "__main__":
     swath_exp = get_msexperiment_obj(mzml_filepath)
 
     sig_qval_joined_osw = TSV_DIR / "20220124_sig_qval_null_feature_ftrans_trans_score_ms2.tsv"
-    osw_df = pd.concat(fetch_product_mz(read_chunk_tsv(sig_qval_joined_osw), mz_range=0.0001))
+    # Fetch peaks that fit within m/z window of +/- 0.0001
+    # osw_df = pd.concat(fetch_product_mz(read_chunk_tsv(sig_qval_joined_osw), mz_range=0.0001))
+    # Fetch peaks that fit within m/z window of +/- 20ppm
+    osw_df = pd.concat(fetch_product_mz(read_chunk_tsv(sig_qval_joined_osw), ppm=20))
 
     find_peak_in_mzml_to_osw(swath_exp, osw_df)
