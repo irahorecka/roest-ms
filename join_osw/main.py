@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -10,6 +11,7 @@ DATA_DIR = ROOT_DIR / "data"
 MZML_DIR = DATA_DIR / "mzml"
 OSW_DIR = DATA_DIR / "osw"
 TSV_DIR = DATA_DIR / "tsv"
+DATETIME_TODAY = datetime.now().strftime("%Y%m%d")
 
 
 def get_sig_score_ms2(osw_filepath, qvalue=0.01):
@@ -58,6 +60,13 @@ def get_sig_score(df, qvalue=0.01):
     return pd.concat(pu.chunked_apply(df, func=filter_sig_score))
 
 
+def get_run_id(df, run_id):
+    def filter_run_id(chunk):
+        return chunk[chunk["RUN_ID"] == run_id]
+
+    return pd.concat(pu.chunked_apply(df, func=filter_run_id))
+
+
 def merge_tras_w_df(osw_filepath, df):
     trans = get_osw_table_as_df(osw_filepath, tablename="TRANSITION", chunksize=100_000)
 
@@ -74,48 +83,77 @@ if __name__ == "__main__":
     osw_filepath = OSW_DIR / "merged_-1.osw"
     ## [OPTIONAL]
     ## EXPORT SIGNIFICANT SCORE_MS2 SPECTRUM WITH QVALUE < 0.01
+    # print("EXPORT SIGNIFICANT SCORE_MS2 SPECTRUM WITH QVALUE < 0.01")
     # sig_score_ms2 = get_sig_score_ms2(osw_filepath, qvalue=0.01)
-    # sig_score_ms2_filepath = TSV_DIR / "20220124_qval_01_score_ms2.tsv"
+    # sig_score_ms2_filepath = TSV_DIR / f"{DATETIME_TODAY}_qval_01_score_ms2.tsv"
     # pu.export_as_tsv(sig_score_ms2, sig_score_ms2_filepath)
 
     # ========== START PIPELINE ==========
 
     # EXPORT SCORE_MS2 SPECTRUM WITH QVALUE < 1 - I.E., ALL ROWS
+    print("EXPORT SCORE_MS2 SPECTRUM WITH QVALUE < 1 - I.E., ALL ROWS")
     score_ms2 = get_sig_score_ms2(osw_filepath, qvalue=1)
-    score_ms2_filepath = TSV_DIR / "20220124_qval_null_score_ms2.tsv"
+    score_ms2_filepath = TSV_DIR / f"{DATETIME_TODAY}_qval_null_score_ms2.tsv"
     pu.export_as_tsv(score_ms2, score_ms2_filepath)
     del score_ms2
 
     # MERGE SCORE_MS2 WITH QVALUE < 1 DF WITH FEATURE_TRANSITIONS ON COL 'FEATURE_ID'
+    print("MERGE SCORE_MS2 WITH QVALUE < 1 DF WITH FEATURE_TRANSITIONS ON COL 'FEATURE_ID'")
     score_ms2 = pu.read_tsv(score_ms2_filepath)
     ftrans_score_ms2 = merge_feature_transitions_w_df(osw_filepath, score_ms2)
-    ftrans_score_ms2_filepath = TSV_DIR / "20220124_qval_null_ftrans_score_ms2.tsv"
+    ftrans_score_ms2_filepath = TSV_DIR / f"{DATETIME_TODAY}_qval_null_ftrans_score_ms2.tsv"
     pu.export_as_tsv(ftrans_score_ms2, ftrans_score_ms2_filepath)
     del (score_ms2, ftrans_score_ms2)
 
     # MERGE FTRANS_SCORE_MS2 WITH QVALUE < 1 DF WITH FEATURES ON COL 'FEATURE_ID'
+    print("MERGE FTRANS_SCORE_MS2 WITH QVALUE < 1 DF WITH FEATURES ON COL 'FEATURE_ID'")
     ftrans_score_ms2 = pu.read_tsv(ftrans_score_ms2_filepath)
     ftrans_feature_score_ms2 = merge_feature_w_df(osw_filepath, ftrans_score_ms2)
-    ftrans_feature_score_ms2_filepath = TSV_DIR / "20220124_qval_null_feature_ftrans_score_ms2.tsv"
+    ftrans_feature_score_ms2_filepath = (
+        TSV_DIR / f"{DATETIME_TODAY}_qval_null_feature_ftrans_score_ms2.tsv"
+    )
     pu.export_as_tsv(ftrans_feature_score_ms2, ftrans_feature_score_ms2_filepath)
     del (ftrans_score_ms2, ftrans_feature_score_ms2)
 
     # MERGE FTRANS_FEATURE_SCORE_MS2 WITH QVALUE < 1 DF WITH TRANSITIONS ON COL 'TRANSITION_ID'
+    print(
+        "MERGE FTRANS_FEATURE_SCORE_MS2 WITH QVALUE < 1 DF WITH TRANSITIONS ON COL 'TRANSITION_ID'"
+    )
     ftrans_feature_score_ms2 = pu.read_tsv(ftrans_feature_score_ms2_filepath)
     ftrans_feature_trans_score_ms2 = merge_tras_w_df(osw_filepath, ftrans_feature_score_ms2)
     ftrans_feature_trans_score_ms2_filepath = (
-        TSV_DIR / "20220124_qval_null_feature_ftrans_trans_score_ms2.tsv"
+        TSV_DIR / f"{DATETIME_TODAY}_qval_null_feature_ftrans_trans_score_ms2.tsv"
     )
     pu.export_as_tsv(ftrans_feature_trans_score_ms2, ftrans_feature_trans_score_ms2_filepath)
     del (ftrans_feature_score_ms2, ftrans_feature_trans_score_ms2)
 
     # EXPORT SIGNIFICANT FTRANS_FEATURE_TRANS_SCORE_MS2 SPECTRUM WITH QVALUE < 0.01
+    print("EXPORT SIGNIFICANT FTRANS_FEATURE_TRANS_SCORE_MS2 SPECTRUM WITH QVALUE < 0.01")
     ftrans_feature_trans_score_ms2 = pu.read_chunk_tsv(ftrans_feature_trans_score_ms2_filepath)
     sig_ftrans_feature_trans_score_ms2 = get_sig_score(ftrans_feature_trans_score_ms2, qvalue=0.01)
     sig_ftrans_feature_trans_score_ms2_filepath = (
-        TSV_DIR / "20220124_sig_qval_null_feature_ftrans_trans_score_ms2.tsv"
+        TSV_DIR / f"{DATETIME_TODAY}_sig_qval_null_feature_ftrans_trans_score_ms2.tsv"
     )
     pu.export_as_tsv(
         sig_ftrans_feature_trans_score_ms2, sig_ftrans_feature_trans_score_ms2_filepath
     )
     del (ftrans_feature_trans_score_ms2, sig_ftrans_feature_trans_score_ms2)
+
+    # EXPORT SIGNIFICANT FTRANS_FEATURE_TRANS_SCORE_MS2 SPECTRUM WITH QVALUE < 0.01 AND RUN_ID PERTAINING TO RUN
+    print(
+        "EXPORT SIGNIFICANT FTRANS_FEATURE_TRANS_SCORE_MS2 SPECTRUM WITH QVALUE < 0.01 AND RUN_ID PERTAINING TO RUN"
+    )
+    run_id = -3635800775910245364
+    sig_ftrans_feature_trans_score_ms2 = pu.read_chunk_tsv(
+        sig_ftrans_feature_trans_score_ms2_filepath
+    )
+    group_run_sig_ftrans_feature_trans_score_ms2 = get_run_id(
+        sig_ftrans_feature_trans_score_ms2, run_id
+    )
+    group_run_sig_ftrans_feature_trans_score_ms2_filepath = (
+        TSV_DIR / f"{DATETIME_TODAY}_run_1330_0_sig_qval_null_feature_ftrans_trans_score_ms2.tsv"
+    )
+    pu.export_as_tsv(
+        group_run_sig_ftrans_feature_trans_score_ms2,
+        group_run_sig_ftrans_feature_trans_score_ms2_filepath,
+    )

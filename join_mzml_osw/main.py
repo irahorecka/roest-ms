@@ -67,7 +67,6 @@ def find_peak_in_mzml_to_osw(mzml_exp, osw_df):
             filtered_osw_df = osw_df[
                 (mz > osw_df["PRODUCT_MZ_LEFT"]) & (mz < osw_df["PRODUCT_MZ_RIGHT"])
             ]
-
             if filtered_osw_df.shape[0] != 0:
                 # Peak(s) found - record data to output file
                 found += 1
@@ -125,6 +124,7 @@ def generate_output_mzml_file_df_format():
     colnames = [
         # From OSW file
         "FEATURE_ID",
+        "TRANSITION_ID",
         # From MZML file
         "MZ",
         "INTENSITY",
@@ -142,6 +142,7 @@ def concat_desired_features_to_df(exp, mz_idx, mz_arr, int_arr, filtered_osw_df)
     output_df = generate_output_mzml_file_df_format()
     # From OSW file
     output_df["FEATURE_ID"] = filtered_osw_df["FEATURE_ID"]
+    output_df["TRANSITION_ID"] = filtered_osw_df["TRANSITION_ID"]
     # From MZML file
     output_df["TIC"] = exp.calculateTIC()
     # mz_idx is needed to index correct IM value from MZML experiment
@@ -161,7 +162,9 @@ if __name__ == "__main__":
     )
     swath_exp = get_msexperiment_obj(mzml_filepath)
 
-    sig_qval_joined_osw = TSV_DIR / "20220124_sig_qval_null_feature_ftrans_trans_score_ms2.tsv"
+    sig_qval_joined_osw = (
+        TSV_DIR / "20220127_run_1330_0_sig_qval_null_feature_ftrans_trans_score_ms2.tsv"
+    )
     # Fetch peaks that fit within m/z window of +/- 0.0001
     # osw_df = pd.concat(fetch_product_mz(read_chunk_tsv(sig_qval_joined_osw), mz_range=0.0001))
     # Fetch peaks that fit within m/z window of +/- 20ppm

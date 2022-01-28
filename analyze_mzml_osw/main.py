@@ -65,10 +65,10 @@ def aggregate_merged_mzml_osw_df(merged_df):
 
 
 def unique(arr):
-    unique_arr = set(arr)
+    unique_arr = tuple(set(arr))
     if len(unique_arr) == 1:
-        return unique_arr.pop()
-    return list(unique_arr)
+        return unique_arr[0]
+    return unique_arr
 
 
 def summarize_agg_merged_mzml_osw_df(agg_merged_df):
@@ -128,7 +128,8 @@ if __name__ == "__main__":
     # !!! IMPORTED DATAFRAME MUST BE SORTED BY 'FEATURE_ID' !!!
     print("Load joined MZML/OSW file...")
     mzml_osw_1_168_qval_001_mz_window_001 = pu.read_chunk_tsv(
-        mzml_osw_qval_001_mz_window_001_dir / "merged_20220126_frame=22786_scan=452_qvalue_01.tsv",
+        # mzml_osw_qval_001_mz_window_001_dir / "merged_20220126_frame=22786_scan=452_qvalue_01.tsv",
+        TSV_DIR / "merged_20220127_frame=22786_scan=452_qvalue_01.tsv",
         chunksize=1_000_000,
     )
     # Significant QVALUE OSW file (df)
