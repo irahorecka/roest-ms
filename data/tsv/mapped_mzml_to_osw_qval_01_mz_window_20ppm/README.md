@@ -3,7 +3,7 @@
 This directory is intended to store TSV files with the following properties:
 
 - MZML data from `data/mzml/Rost_DIApy3_SP2um_90min_250ngK562_100nL_1_Slot1-5_1_1330_6-28-2021_0_2400_to_2700_swath_700.mzML`
-- OSW features with QVALUE < 0.01 from `data/tsv/20220124_sig_qval_null_feature_ftrans_trans_score_ms2.tsv`
+- OSW features with QVALUE < 0.01 and RUN_ID == 1330_0 from `data/tsv/20220127_sig_qval_null_feature_ftrans_trans_score_ms2.tsv`
 - MZ peak (from MZML file) cutoff range of +/- 20ppm
 
 The equation for converting MZ to PPM is as follows
