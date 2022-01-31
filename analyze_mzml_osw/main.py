@@ -1,7 +1,6 @@
 # BEGIN MERGING OF MZML FILE WITH OSW FILE
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 import pd_util as pu

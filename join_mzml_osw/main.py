@@ -56,7 +56,7 @@ def find_peak_in_mzml_to_osw(mzml_exp, osw_df):
         # MZ and intensity arrays
         mz_array, int_array = exp.get_peaks()
         # Iterate through MZ values in MZML experiment
-        for mz_idx, mz in enumerate(exp.get_peaks()[0]):
+        for mz_idx, mz in enumerate(mz_array):
             if mz_idx % 500 == 0 and mz_idx != 0:
                 # Write to file every 500th loop - prevents bloating accumulating DF in memory
                 output_tsv_filepath = TSV_TEMP_DIR / f"{mz_idx}_{output_tsv_filename}"
@@ -91,7 +91,7 @@ def find_peak_in_mzml_to_osw(mzml_exp, osw_df):
 
         # Sort dataframe by 'FEATURE_ID' -- THIS IS CRUCIAL FOR FOLLOWING STEP.
         export_mzml_df = export_mzml_df.sort_values(by=["FEATURE_ID"])
-
+        print(f"Found: {found} | Not Found: {non_found}")
         print(f"% of sig peaks identified for exp {exp_idx + 1}:", perc_sig_peaks)
         # Export df
         export_tsv_filepath = TSV_DIR / f"merged_{output_tsv_filename}"
