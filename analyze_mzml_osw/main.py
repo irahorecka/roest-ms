@@ -155,7 +155,8 @@ if __name__ == "__main__":
     # Joined MZML/OSW file (df)
     mzml_osw_qval_001_mz_window_001_dir = TSV_DIR / "mapped_mzml_to_osw_qval_01_mz_window_20ppm"
     merged_mzml_osw_window = (
-        mzml_osw_qval_001_mz_window_001_dir / "merged_20220127_frame=22888_scan=452_qvalue_01.tsv"
+        # mzml_osw_qval_001_mz_window_001_dir / "merged_20220127_frame=22888_scan=452_qvalue_01.tsv"
+        mzml_osw_qval_001_mz_window_001_dir / "test.tsv"
     )
     exp_name = "frame" + str(merged_mzml_osw_window).split("frame")[-1].split("_qvalue")[0]
 
